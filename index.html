@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recipe Scaler</title>
+<style>
+  :root{
+    --bg:#f3f0ea; --card:#fbfaf7; --ink:#2f2f2b; --muted:#8a877e; --line:#e6e2d9;
+    --accent:#6b7f6a; --accent-dark:#566856; --accent-soft:#e4eae1;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans","Noto Sans SC","Noto Sans Tamil","PingFang SC","Microsoft YaHei","Nirmala UI",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; line-height:1.4;
+  }
+  main{max-width:560px; margin:0 auto; padding:56px 20px 72px; display:flex; flex-direction:column; gap:20px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:20px; padding:28px}
+  .eyebrow{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:0 0 8px}
+  h1{font-size:26px; font-weight:600; margin:0 0 4px; letter-spacing:-.01em}
+  .sub{color:var(--muted); font-size:14px; margin:0}
+
+  /* selectors */
+  .picker{padding:20px 28px; display:flex; flex-direction:column; gap:14px}
+  .row{display:flex; align-items:center; justify-content:space-between; gap:16px}
+  .row label{font-size:15px; font-weight:500}
+  .select-wrap{position:relative; flex:1; max-width:260px}
+  select{
+    width:100%; appearance:none; -webkit-appearance:none; font:inherit; font-size:15px; color:var(--ink);
+    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238a877e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 16px center;
+    border:1px solid var(--line); border-radius:12px; padding:12px 40px 12px 16px; cursor:pointer;
+  }
+  select:hover{border-color:#cfcabd}
+  select:focus-visible{outline:3px solid #b9c7b6; outline-offset:2px}
+
+  .photo{margin:0; padding:0; overflow:hidden}
+  .photo[hidden]{display:none}
+  .photo.small{background:var(--accent-soft)}
+  .photo.small img{aspect-ratio:auto; height:340px; object-fit:contain}
+  .photo img{display:block; width:100%; aspect-ratio:4/3; object-fit:cover; object-position:center 60%}
+
+  .stepper-card{display:flex; align-items:center; justify-content:space-between; gap:16px}
+  .stepper-label{font-size:15px; font-weight:500}
+  .stepper-label small{display:block; color:var(--muted); font-weight:400; font-size:13px; margin-top:2px}
+  .stepper{display:flex; align-items:center; gap:6px; background:var(--accent-soft); border-radius:999px; padding:6px}
+  .stepper button{
+    width:48px; height:48px; border:0; border-radius:50%; background:var(--accent); color:#fff;
+    font-size:26px; line-height:1; cursor:pointer; transition:background .15s, transform .1s; font-family:inherit;
+  }
+  .stepper button:hover:not(:disabled){background:var(--accent-dark)}
+  .stepper button:active:not(:disabled){transform:scale(.94)}
+  .stepper button:disabled{background:#c5cdc3; cursor:not-allowed}
+  .stepper button:focus-visible{outline:3px solid #b9c7b6; outline-offset:2px}
+  .count{min-width:56px; text-align:center; font-size:28px; font-weight:600; font-variant-numeric:tabular-nums}
+
+  ul{list-style:none; margin:0; padding:0}
+  .ing{display:grid; grid-template-columns:1fr auto 72px; gap:12px; align-items:baseline; padding:14px 0; border-bottom:1px solid var(--line)}
+  .ing:last-child{border-bottom:0}
+  .name{font-size:16px}
+  .qty{font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; text-align:right}
+  .qty .u{font-weight:400; color:var(--muted); margin-left:3px}
+  .kcal{font-size:13px; color:var(--muted); text-align:right; font-variant-numeric:tabular-nums}
+  .head{display:grid; grid-template-columns:1fr auto 72px; gap:12px; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding-bottom:10px; border-bottom:1px solid var(--line)}
+  .head span:nth-child(2),.head span:nth-child(3){text-align:right}
+  .note{font-size:12px; color:var(--muted); margin:16px 0 0}
+
+  .steps{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:18px}
+  .steps li{display:flex; gap:16px; align-items:flex-start; font-size:15px; line-height:1.6}
+  .steps .n{flex:none; width:28px; height:28px; border-radius:50%; background:var(--accent-soft); color:var(--accent-dark); font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; margin-top:1px}
+  .steps strong{font-weight:600}
+
+  .totals{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  .stat{background:var(--accent-soft); border-radius:14px; padding:18px}
+  .stat .v{font-size:30px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+  .stat .v span{font-size:14px; font-weight:400; color:var(--muted); margin-left:4px}
+  .stat .l{font-size:13px; color:var(--muted); margin-top:2px}
+  @media(max-width:420px){
+    .card{padding:22px}.picker{padding:18px 22px}
+    .stepper-card{flex-direction:column; align-items:stretch; text-align:center}.stepper{justify-content:space-between}
+  }
+</style>
+</head>
+<body>
+<main>
+  <section class="card picker">
+    <div class="row">
+      <label for="recipe" data-i18n="recipe">Recipe</label>
+      <div class="select-wrap"><select id="recipe"></select></div>
+    </div>
+    <div class="row">
+      <label for="lang" data-i18n="language">Language</label>
+      <div class="select-wrap">
+        <select id="lang">
+          <option value="en">English</option>
+          <option value="zh">中文（华语）</option>
+          <option value="ms">Bahasa Melayu</option>
+          <option value="ta">தமிழ்</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <figure class="card photo" id="photo" hidden>
+    <img id="photoImg" alt="">
+  </figure>
+
+  <section class="card stepper-card" aria-labelledby="servLabel">
+    <div class="stepper-label"><span id="servLabel" data-i18n="servings">Servings</span>
+      <small id="hint"></small>
+    </div>
+    <div class="stepper">
+      <button id="minus" aria-label="Fewer servings">&minus;</button>
+      <div class="count" id="count" aria-live="polite" aria-atomic="true">4</div>
+      <button id="plus" aria-label="More servings">+</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow" data-i18n="ingredients">Ingredients</p>
+    <h1 id="title"></h1>
+    <p class="sub" id="desc"></p>
+    <div style="height:22px"></div>
+    <div class="head"><span data-i18n="ingredient">Ingredient</span><span data-i18n="amount">Amount</span><span data-i18n="kcal">Kcal</span></div>
+    <ul id="list"></ul>
+    <p class="note" data-i18n="note"></p>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow" data-i18n="method">Method</p>
+    <ol class="steps" id="steps"></ol>
+    <p class="note" id="mnote" hidden></p>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow" data-i18n="fullRecipe">Full recipe</p>
+    <div class="totals">
+      <div class="stat"><div class="v" id="total">0<span></span></div><div class="l" data-i18n="total">Total</div></div>
+      <div class="stat"><div class="v" id="per">0<span></span></div><div class="l" data-i18n="perServing">Per serving</div></div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const BASE = 4, MIN = 1, MAX = 12;
+
+  /* ---------- Interface text ---------- */
+  const UI = {
+    en:{ htmlLang:"en", recipe:"Recipe", language:"Language", servings:"Servings",
+      writtenFor:"Written for 4", scaledFrom:"Scaled from 4", fewer:"Fewer servings", more:"More servings",
+      ingredients:"Ingredients", ingredient:"Ingredient", amount:"Amount", kcal:"Kcal", kcalUnit:"kcal",
+      note:"Whole items (eggs, cloves, crabs and so on) are rounded to the nearest whole number, minimum 1, and their calories follow the rounded amount. Calories are estimates.",
+      method:"Method", fullRecipe:"Full recipe", total:"Total", perServing:"Per serving",
+      units:{g:"g", ml:"ml", tbsp:"tbsp", tsp:"tsp"} },
+    zh:{ htmlLang:"zh-Hans", recipe:"食谱", language:"语言", servings:"份数",
+      writtenFor:"食谱以 4 人份编写", scaledFrom:"按 4 人份换算", fewer:"减少份数", more:"增加份数",
+      ingredients:"食材", ingredient:"食材", amount:"用量", kcal:"千卡", kcalUnit:"千卡",
+      note:"整颗或整只的食材（如鸡蛋、蒜瓣、螃蟹等）会四舍五入为整数，至少为 1，其热量按取整后的数量计算。热量为估算值。",
+      method:"做法", fullRecipe:"整份食谱", total:"总计", perServing:"每份",
+      units:{g:"克", ml:"毫升", tbsp:"汤匙", tsp:"茶匙"} },
+    ms:{ htmlLang:"ms", recipe:"Resipi", language:"Bahasa", servings:"Hidangan",
+      writtenFor:"Ditulis untuk 4 hidangan", scaledFrom:"Dilaraskan daripada 4", fewer:"Kurangkan hidangan", more:"Tambah hidangan",
+      ingredients:"Bahan-bahan", ingredient:"Bahan", amount:"Kuantiti", kcal:"Kkal", kcalUnit:"kkal",
+      note:"Item bulat (telur, ulas, ketam dan seumpamanya) dibundarkan kepada nombor bulat terdekat, minimum 1, dan kalorinya mengikut jumlah yang dibundarkan. Kalori adalah anggaran.",
+      method:"Cara memasak", fullRecipe:"Keseluruhan resipi", total:"Jumlah", perServing:"Setiap hidangan",
+      units:{g:"g", ml:"ml", tbsp:"sb", tsp:"sk"} },
+    ta:{ htmlLang:"ta", recipe:"சமையல் குறிப்பு", language:"மொழி", servings:"பரிமாறல்கள்",
+      writtenFor:"4 பேருக்கு எழுதப்பட்டது", scaledFrom:"4-இலிருந்து மாற்றப்பட்டது", fewer:"பரிமாறல்களைக் குறை", more:"பரிமாறல்களை அதிகரி",
+      ingredients:"தேவையான பொருட்கள்", ingredient:"பொருள்", amount:"அளவு", kcal:"கலோ.", kcalUnit:"கலோ.",
+      note:"முழுமையான பொருட்கள் (முட்டை, பல், நண்டு போன்றவை) அருகிலுள்ள முழு எண்ணாக, குறைந்தது 1 ஆக வட்டமிடப்படுகின்றன; அவற்றின் கலோரிகள் வட்டமிடப்பட்ட அளவைப் பின்பற்றும். கலோரிகள் மதிப்பீடுகள்.",
+      method:"செய்முறை", fullRecipe:"முழு சமையல் குறிப்பு", total:"மொத்தம்", perServing:"ஒரு பரிமாறலுக்கு",
+      units:{g:"கி", ml:"மிலி", tbsp:"மே.க.", tsp:"தே.க."} }
+  };
+
+  /* ---------- Recipes ----------
+     All written for 4. Ingredient rows: [quantity, unit, kcal per unit, whole item?]
+     Text for every language lives in `text`, with ingredient names in the same order as `ing`. */
+  const RECIPES = [
+    {
+      id:"laksa", image:"laksa.jpg",
+      ing:[[200,"g",3.6],[300,"g",0.99],[4,"tbsp",30],[400,"ml",1.9],[600,"ml",0.1],[8,"",35,1],[100,"g",0.3],[2,"",72,1],[1,"tbsp",120]],
+      text:{
+        en:{ name:"Laksa", alt:"A bowl of laksa with prawns, tofu puffs, fish balls and bean sprouts",
+          desc:"Spicy coconut noodle soup with prawns, tofu puffs and egg.",
+          names:["Rice vermicelli, dry","Prawns, peeled","Laksa paste","Coconut milk","Chicken stock","Fried tofu puffs","Bean sprouts","Eggs, hard-boiled","Vegetable oil"],
+          steps:[
+            "<strong>Soak the noodles.</strong> Cover the vermicelli with hot water for 5 minutes, or until soft, then drain.",
+            "<strong>Fry the paste.</strong> Heat the oil in a large pot over medium heat and fry the laksa paste for 3 minutes until fragrant and the oil separates.",
+            "<strong>Build the broth.</strong> Pour in the stock and coconut milk, bring to a gentle simmer and cook for 10 minutes. Don't let it boil hard or the coconut milk may split.",
+            "<strong>Cook the prawns.</strong> Add the prawns and tofu puffs and simmer for 3–4 minutes, until the prawns turn pink.",
+            "<strong>Blanch the sprouts.</strong> Dip the bean sprouts in boiling water for 20 seconds and drain.",
+            "<strong>Assemble.</strong> Divide the noodles and sprouts into bowls, ladle over the broth, prawns and tofu, and top each bowl with halved egg."
+          ] },
+        zh:{ name:"叻沙", alt:"一碗配有虾、豆腐泡、鱼丸和豆芽的叻沙",
+          desc:"香辣椰浆汤面，配虾、豆腐泡和鸡蛋。",
+          names:["干米粉","虾仁","叻沙酱","椰浆","鸡汤","炸豆腐泡","豆芽","水煮蛋","植物油"],
+          steps:[
+            "<strong>泡发米粉。</strong>用热水浸泡米粉约 5 分钟至变软，沥干。",
+            "<strong>炒香酱料。</strong>大锅中火热油，将叻沙酱炒约 3 分钟，至香气四溢、油分渗出。",
+            "<strong>煮汤底。</strong>倒入鸡汤和椰浆，小火煮开后再煮 10 分钟。切勿大火滚煮，以免椰浆油水分离。",
+            "<strong>煮虾。</strong>放入虾和豆腐泡，小火煮 3–4 分钟，至虾变红。",
+            "<strong>汆烫豆芽。</strong>将豆芽放入滚水中烫 20 秒，捞起沥干。",
+            "<strong>装碗。</strong>将米粉和豆芽分装入碗，淋上汤底，放上虾和豆腐泡，每碗再放半个切开的水煮蛋。"
+          ] },
+        ms:{ name:"Laksa", alt:"Semangkuk laksa dengan udang, tauhu goreng, bebola ikan dan taugeh",
+          desc:"Sup mi kuah santan yang pedas dengan udang, tauhu goreng dan telur.",
+          names:["Bihun kering","Udang, dikupas","Pes laksa","Santan","Stok ayam","Tauhu goreng","Taugeh","Telur rebus","Minyak sayuran"],
+          steps:[
+            "<strong>Rendam bihun.</strong> Rendam bihun dalam air panas selama 5 minit sehingga lembut, kemudian toskan.",
+            "<strong>Tumis pes.</strong> Panaskan minyak dalam periuk besar dengan api sederhana dan tumis pes laksa selama 3 minit sehingga wangi dan minyak mula berpisah.",
+            "<strong>Sediakan kuah.</strong> Tuang stok dan santan, didihkan perlahan-lahan dan masak selama 10 minit. Jangan biarkan mendidih kuat kerana santan boleh pecah.",
+            "<strong>Masak udang.</strong> Masukkan udang dan tauhu goreng, reneh selama 3–4 minit sehingga udang bertukar merah jambu.",
+            "<strong>Celur taugeh.</strong> Celur taugeh dalam air mendidih selama 20 saat dan toskan.",
+            "<strong>Hidang.</strong> Bahagikan bihun dan taugeh ke dalam mangkuk, tuang kuah, udang dan tauhu, kemudian letakkan separuh telur di atas setiap mangkuk."
+          ] },
+        ta:{ name:"லக்சா", alt:"இறால், பொரித்த டோஃபு, மீன் உருண்டை, பீன்ஸ் முளை சேர்ந்த ஒரு கிண்ணம் லக்சா",
+          desc:"இறால், பொரித்த டோஃபு, முட்டையுடன் காரமான தேங்காய்ப் பால் நூடுல்ஸ் சூப்.",
+          names:["உலர் அரிசி சேமியா","தோல் நீக்கிய இறால்","லக்சா பேஸ்ட்","தேங்காய்ப் பால்","கோழி ஸ்டாக்","பொரித்த டோஃபு","பீன்ஸ் முளை","வேகவைத்த முட்டை","தாவர எண்ணெய்"],
+          steps:[
+            "<strong>சேமியாவை ஊறவைக்கவும்.</strong> சேமியாவை சூடான நீரில் 5 நிமிடம் மென்மையாகும் வரை ஊறவைத்து, வடிகட்டவும்.",
+            "<strong>பேஸ்டை வறுக்கவும்.</strong> பெரிய பாத்திரத்தில் நடுத்தரத் தீயில் எண்ணெயைச் சூடாக்கி, லக்சா பேஸ்டை 3 நிமிடம் நறுமணம் வரும் வரை, எண்ணெய் பிரியும் வரை வறுக்கவும்.",
+            "<strong>குழம்பு தயாரிக்கவும்.</strong> ஸ்டாக்கையும் தேங்காய்ப் பாலையும் ஊற்றி, மெதுவாகக் கொதிக்கவிட்டு 10 நிமிடம் சமைக்கவும். வேகமாகக் கொதிக்க விடாதீர்கள்; தேங்காய்ப் பால் திரிந்துவிடலாம்.",
+            "<strong>இறாலைச் சமைக்கவும்.</strong> இறாலையும் பொரித்த டோஃபுவையும் சேர்த்து, இறால் இளஞ்சிவப்பாக மாறும் வரை 3–4 நிமிடம் மெதுவாகக் கொதிக்கவிடவும்.",
+            "<strong>முளையைக் கொதிநீரில் அமிழ்த்தவும்.</strong> பீன்ஸ் முளையை கொதிக்கும் நீரில் 20 விநாடிகள் போட்டு, வடிகட்டவும்.",
+            "<strong>பரிமாறவும்.</strong> கிண்ணங்களில் சேமியாவையும் முளையையும் பிரித்து வைத்து, குழம்பு, இறால், டோஃபு ஆகியவற்றை ஊற்றி, ஒவ்வொரு கிண்ணத்திலும் இரண்டாகப் பிளந்த முட்டையை வைக்கவும்."
+          ] }
+      }
+    },
+    {
+      id:"nasilemak",
+      ing:[[300,"g",3.65],[250,"ml",1.9],[2,"",2,1],[600,"g",2.1],[40,"g",3.0],[60,"g",5.7],[4,"",72,1],[1,"",45,1],[4,"tbsp",45],[3,"tbsp",120]],
+      text:{
+        en:{ name:"Nasi Lemak", desc:"Coconut rice with fried chicken, sambal, anchovies, peanuts and egg.",
+          names:["Jasmine rice, dry","Coconut milk","Pandan leaves","Chicken thighs","Dried anchovies","Roasted peanuts","Eggs, hard-boiled","Cucumber","Sambal","Vegetable oil"],
+          steps:[
+            "<strong>Cook the coconut rice.</strong> Rinse the rice and cook it with the coconut milk, an equal amount of water to cover, a pinch of salt and the knotted pandan leaves.",
+            "<strong>Fry the chicken.</strong> Season the chicken with salt, then pan-fry in half the oil for 6–7 minutes per side until golden and cooked through. Rest it for 5 minutes.",
+            "<strong>Crisp the anchovies.</strong> Fry the anchovies in the remaining oil for 2–3 minutes until crisp, then add the peanuts for the last 30 seconds. Drain on paper.",
+            "<strong>Prep the sides.</strong> Peel and halve the eggs and slice the cucumber.",
+            "<strong>Plate up.</strong> Mound the rice on each plate with chicken, egg, cucumber, anchovies and peanuts, with a spoonful of sambal alongside."
+          ] },
+        zh:{ name:"椰浆饭", desc:"椰浆饭配炸鸡、参巴酱、小鱼干、花生和鸡蛋。",
+          names:["茉莉香米（生米）","椰浆","香兰叶","鸡腿肉","小鱼干","烤花生","水煮蛋","黄瓜","参巴酱","植物油"],
+          steps:[
+            "<strong>煮椰浆饭。</strong>米洗净，加入椰浆、刚好没过米的水、一小撮盐和打结的香兰叶一起煮。",
+            "<strong>煎鸡肉。</strong>鸡肉用盐调味，以一半的油煎，每面煎 6–7 分钟，至金黄熟透，静置 5 分钟。",
+            "<strong>炸香小鱼干。</strong>用剩下的油炸小鱼干 2–3 分钟至酥脆，最后 30 秒加入花生，沥油后放在吸油纸上。",
+            "<strong>准备配菜。</strong>水煮蛋剥壳后切半，黄瓜切片。",
+            "<strong>摆盘。</strong>将饭堆在盘中，配上鸡肉、鸡蛋、黄瓜、小鱼干和花生，旁边放一匙参巴酱。"
+          ] },
+        ms:{ name:"Nasi Lemak", desc:"Nasi santan dengan ayam goreng, sambal, ikan bilis, kacang tanah dan telur.",
+          names:["Beras wangi, kering","Santan","Daun pandan","Peha ayam","Ikan bilis kering","Kacang tanah panggang","Telur rebus","Timun","Sambal","Minyak sayuran"],
+          steps:[
+            "<strong>Masak nasi lemak.</strong> Basuh beras dan masak bersama santan, air secukupnya untuk menutup beras, secubit garam dan daun pandan yang disimpul.",
+            "<strong>Goreng ayam.</strong> Perasakan ayam dengan garam, kemudian goreng dalam kuali dengan separuh minyak selama 6–7 minit setiap sisi sehingga keemasan dan masak. Biarkan selama 5 minit.",
+            "<strong>Garingkan ikan bilis.</strong> Goreng ikan bilis dalam baki minyak selama 2–3 minit sehingga garing, kemudian masukkan kacang tanah pada 30 saat terakhir. Toskan di atas kertas penyerap.",
+            "<strong>Sediakan sampingan.</strong> Kupas dan belah telur kepada dua, kemudian hiris timun.",
+            "<strong>Hidang.</strong> Letakkan nasi di atas setiap pinggan bersama ayam, telur, timun, ikan bilis dan kacang tanah, dengan sesudu sambal di tepi."
+          ] },
+        ta:{ name:"நாசி லெமாக்", desc:"தேங்காய்ச் சோறு, பொரித்த கோழி, சம்பல், நெத்திலி, வேர்க்கடலை, முட்டையுடன்.",
+          names:["ஜாஸ்மின் அரிசி (உலர்)","தேங்காய்ப் பால்","பாண்டன் இலைகள்","கோழி தொடைக்கறி","உலர் நெத்திலி மீன்","வறுத்த வேர்க்கடலை","வேகவைத்த முட்டை","வெள்ளரிக்காய்","சம்பல்","தாவர எண்ணெய்"],
+          steps:[
+            "<strong>தேங்காய்ச் சோறு சமைக்கவும்.</strong> அரிசியைக் கழுவி, தேங்காய்ப் பால், அரிசி மூழ்கும் அளவு தண்ணீர், ஒரு சிட்டிகை உப்பு, முடிச்சிட்ட பாண்டன் இலைகள் சேர்த்து சமைக்கவும்.",
+            "<strong>கோழியைப் பொரிக்கவும்.</strong> கோழிக்கு உப்பு தடவி, பாதி எண்ணெயில் ஒவ்வொரு பக்கமும் 6–7 நிமிடம் பொன்னிறமாகவும் நன்கு வேகும் வரையும் வறுக்கவும். 5 நிமிடம் ஆறவிடவும்.",
+            "<strong>நெத்திலியை மொறுமொறுப்பாக்கவும்.</strong> மீதமுள்ள எண்ணெயில் நெத்திலி மீனை 2–3 நிமிடம் மொறுமொறுப்பாகும் வரை பொரிக்கவும்; கடைசி 30 விநாடிகளில் வேர்க்கடலையைச் சேர்க்கவும். காகிதத்தில் வடிக்கவும்.",
+            "<strong>துணை உணவுகளைத் தயாரிக்கவும்.</strong> முட்டைகளை உரித்து இரண்டாக வெட்டவும்; வெள்ளரிக்காயை வட்டமாக நறுக்கவும்.",
+            "<strong>தட்டில் அடுக்கவும்.</strong> ஒவ்வொரு தட்டிலும் சோற்றை மேடாக வைத்து, கோழி, முட்டை, வெள்ளரி, நெத்திலி, வேர்க்கடலை சேர்த்து, அருகில் ஒரு கரண்டி சம்பல் வைக்கவும்."
+          ] }
+      }
+    },
+    {
+      id:"chillicrab", image:"chillicrab.jpg", small:true,
+      ing:[[2,"",220,1],[3,"tbsp",120],[3,"",10,1],[5,"",4.5,1],[20,"g",0.8],[3,"",6,1],[4,"tbsp",17],[3,"tbsp",10],[1,"tbsp",48],[200,"ml",0.1],[1,"tbsp",30],[2,"",72,1]],
+      text:{
+        en:{ name:"Chilli Crab", alt:"A whole chilli crab in thick orange sauce, topped with fresh coriander",
+          desc:"Whole crab in a sweet, tangy, mildly spicy tomato and egg sauce.",
+          names:["Mud crabs, whole","Vegetable oil","Shallots","Garlic cloves","Ginger, minced","Red chillies","Tomato ketchup","Chilli sauce","Sugar","Chicken stock","Cornflour","Eggs, beaten"],
+          steps:[
+            "<strong>Prepare the crabs.</strong> Clean the crabs, remove the top shell and gills, and cut each into 4–6 pieces. Crack the claws lightly.",
+            "<strong>Make the base.</strong> Blitz the shallots, garlic, ginger and chillies into a paste. Fry it in the oil over medium heat for 3 minutes until fragrant.",
+            "<strong>Add the sauce.</strong> Stir in the ketchup, chilli sauce, sugar and stock, and bring to a simmer.",
+            "<strong>Cook the crab.</strong> Add the crab pieces, cover and cook for 10–12 minutes, turning once, until the shells turn bright red.",
+            "<strong>Thicken.</strong> Mix the cornflour with a little water and stir it in until the sauce thickens.",
+            "<strong>Finish with egg.</strong> Turn off the heat and drizzle in the beaten egg in a thin stream, stirring gently so it forms ribbons. Serve with fried mantou or rice."
+          ],
+          note:"A pot that holds all the crab comfortably matters more than speed. For 8 servings or more, cook in two batches." },
+        zh:{ name:"辣椒螃蟹", alt:"整只辣椒螃蟹浸在浓稠的橙色酱汁中，撒上新鲜香菜",
+          desc:"整只螃蟹浸在酸甜微辣的番茄蛋汁中。",
+          names:["青蟹（整只）","植物油","红葱头","蒜瓣","姜末","红辣椒","番茄酱","辣椒酱","糖","鸡汤","玉米淀粉","蛋液"],
+          steps:[
+            "<strong>处理螃蟹。</strong>洗净螃蟹，去掉蟹盖和蟹鳃，每只切成 4–6 块，蟹钳轻轻拍裂。",
+            "<strong>制作酱底。</strong>将红葱头、蒜、姜和辣椒打成酱，用油中火炒约 3 分钟至香气四溢。",
+            "<strong>加入酱汁。</strong>加入番茄酱、辣椒酱、糖和鸡汤，煮至微滚。",
+            "<strong>煮螃蟹。</strong>放入螃蟹块，盖上锅盖煮 10–12 分钟，中途翻面一次，至蟹壳变成鲜红色。",
+            "<strong>勾芡。</strong>将玉米淀粉加少许水调匀，倒入锅中搅拌至酱汁变浓稠。",
+            "<strong>淋上蛋液。</strong>关火，将蛋液以细流淋入，轻轻搅拌成蛋花。配炸馒头或米饭享用。"
+          ],
+          note:"锅要大到能舒适地容纳所有螃蟹，这比速度更重要。8 人份或以上请分两批烹煮。" },
+        ms:{ name:"Ketam Cili", alt:"Seekor ketam cili utuh dalam sos oren pekat, dihiasi ketumbar segar",
+          desc:"Ketam utuh dalam sos tomato dan telur yang manis, masam dan sedikit pedas.",
+          names:["Ketam lumpur, utuh","Minyak sayuran","Bawang merah","Ulas bawang putih","Halia, dicincang","Cili merah","Sos tomato","Sos cili","Gula","Stok ayam","Tepung jagung","Telur, dipukul"],
+          steps:[
+            "<strong>Sediakan ketam.</strong> Bersihkan ketam, buang kulit atas dan insang, kemudian potong setiap ekor kepada 4–6 bahagian. Retakkan sepit sedikit.",
+            "<strong>Sediakan asas sos.</strong> Kisar bawang merah, bawang putih, halia dan cili menjadi pes. Tumis dalam minyak dengan api sederhana selama 3 minit sehingga wangi.",
+            "<strong>Masukkan sos.</strong> Masukkan sos tomato, sos cili, gula dan stok, kemudian didihkan perlahan.",
+            "<strong>Masak ketam.</strong> Masukkan ketam, tutup dan masak selama 10–12 minit, balikkan sekali, sehingga cangkerang bertukar merah terang.",
+            "<strong>Pekatkan.</strong> Campurkan tepung jagung dengan sedikit air dan kacau sehingga sos pekat.",
+            "<strong>Siapkan dengan telur.</strong> Matikan api dan tuang telur yang dipukul dalam aliran nipis sambil mengacau perlahan supaya membentuk reben. Hidang dengan mantou goreng atau nasi."
+          ],
+          note:"Periuk yang cukup besar untuk memuatkan semua ketam dengan selesa lebih penting daripada kelajuan. Untuk 8 hidangan atau lebih, masak dalam dua kelompok." },
+        ta:{ name:"சில்லி கிராப்", alt:"அடர்த்தியான ஆரஞ்சு சாஸில் புதிய கொத்தமல்லி தூவிய முழு சில்லி கிராப்",
+          desc:"இனிப்பு, புளிப்பு, லேசான காரம் கொண்ட தக்காளி-முட்டை சாஸில் முழு நண்டு.",
+          names:["சேற்று நண்டு (முழுமையாக)","தாவர எண்ணெய்","சிறு வெங்காயம்","பூண்டுப் பல்","இஞ்சி (நறுக்கியது)","சிவப்பு மிளகாய்","தக்காளி கெட்சப்","மிளகாய் சாஸ்","சர்க்கரை","கோழி ஸ்டாக்","சோள மாவு","அடித்த முட்டை"],
+          steps:[
+            "<strong>நண்டுகளைத் தயாரிக்கவும்.</strong> நண்டுகளைச் சுத்தம் செய்து, மேல் ஓட்டையும் செவுள்களையும் நீக்கி, ஒவ்வொன்றையும் 4–6 துண்டுகளாக வெட்டவும். கொடுக்குகளை லேசாக உடைக்கவும்.",
+            "<strong>அடிப்படைக் கலவை தயாரிக்கவும்.</strong> சிறு வெங்காயம், பூண்டு, இஞ்சி, மிளகாயை விழுதாக அரைக்கவும். அதை எண்ணெயில் நடுத்தரத் தீயில் 3 நிமிடம் நறுமணம் வரும் வரை வதக்கவும்.",
+            "<strong>சாஸ் சேர்க்கவும்.</strong> தக்காளி கெட்சப், மிளகாய் சாஸ், சர்க்கரை, ஸ்டாக் சேர்த்து, மெதுவாகக் கொதிக்கவிடவும்.",
+            "<strong>நண்டைச் சமைக்கவும்.</strong> நண்டுத் துண்டுகளைச் சேர்த்து, மூடி, ஓடு பிரகாசமான சிவப்பாக மாறும் வரை 10–12 நிமிடம் ஒருமுறை புரட்டிச் சமைக்கவும்.",
+            "<strong>கெட்டியாக்கவும்.</strong> சோள மாவை சிறிது தண்ணீரில் கலந்து, சாஸ் கெட்டியாகும் வரை கிளறவும்.",
+            "<strong>முட்டையுடன் முடிக்கவும்.</strong> அடுப்பை அணைத்து, அடித்த முட்டையை மெல்லிய தாரையாக ஊற்றி, நாடா போல உருவாக மெதுவாகக் கிளறவும். பொரித்த மாண்டோ அல்லது சோற்றுடன் பரிமாறவும்."
+          ],
+          note:"வேகத்தை விட, எல்லா நண்டுகளும் வசதியாகப் பொருந்தும் பெரிய பாத்திரம் முக்கியம். 8 பரிமாறல்கள் அல்லது அதற்கு மேல் என்றால் இரண்டு தொகுதிகளாகச் சமைக்கவும்." }
+      }
+    },
+    {
+      id:"chickenrice",
+      ing:[[1200,"g",1.5],[300,"g",3.65],[4,"",4.5,1],[40,"g",0.8],[2,"",2,1],[2,"tbsp",120],[1,"tbsp",120],[2,"tbsp",9],[4,"",6,1],[2,"",10,1],[1,"",45,1],[3,"",5,1]],
+      text:{
+        en:{ name:"Chicken Rice", desc:"Poached chicken with fragrant ginger-garlic rice and chilli sauce.",
+          names:["Whole chicken","Jasmine rice, dry","Garlic cloves","Ginger, sliced","Pandan leaves","Chicken fat or oil","Sesame oil","Light soy sauce","Red chillies","Limes, juiced","Cucumber","Spring onions"],
+          steps:[
+            "<strong>Poach the chicken.</strong> Bring a pot of water with half the ginger and the spring onions to a boil. Lower in the chicken, return to a gentle simmer, cover, then turn off the heat and leave for 40 minutes.",
+            "<strong>Chill it.</strong> Plunge the chicken into iced water for 10 minutes. This sets the skin. Keep the poaching stock.",
+            "<strong>Cook the rice.</strong> Fry the garlic and remaining ginger in the chicken fat for 2 minutes. Add the rinsed rice and stir for a minute. Cook with the pandan and enough poaching stock to cover.",
+            "<strong>Make the chilli sauce.</strong> Blitz the chillies with the lime juice and a ladle of stock until smooth, and season to taste.",
+            "<strong>Carve.</strong> Brush the chicken with sesame oil, carve it into slices and drizzle over the soy sauce.",
+            "<strong>Serve.</strong> Plate with rice, sliced cucumber, a bowl of chilli sauce and a cup of the warm stock."
+          ] },
+        zh:{ name:"海南鸡饭", desc:"白切鸡配姜蒜香饭和辣椒酱。",
+          names:["整鸡","茉莉香米（生米）","蒜瓣","姜片","香兰叶","鸡油或植物油","麻油","生抽","红辣椒","青柠（榨汁）","黄瓜","葱"],
+          steps:[
+            "<strong>白煮鸡。</strong>锅中加水，放入一半的姜和葱煮沸。放入整鸡，再次小火煮开后盖上锅盖，关火焖 40 分钟。",
+            "<strong>过冰水。</strong>将鸡放入冰水中浸 10 分钟，使鸡皮紧实爽脆。保留煮鸡的汤。",
+            "<strong>煮鸡饭。</strong>用鸡油将蒜和剩下的姜爆香 2 分钟，加入洗好的米翻炒 1 分钟。加入香兰叶和刚好没过米的鸡汤煮熟。",
+            "<strong>调辣椒酱。</strong>将辣椒、青柠汁和一勺鸡汤打成细滑的酱，调味。",
+            "<strong>斩鸡。</strong>在鸡身刷上麻油，切片后淋上生抽。",
+            "<strong>上桌。</strong>配上鸡饭、黄瓜片、一小碗辣椒酱和一杯热鸡汤。"
+          ] },
+        ms:{ name:"Nasi Ayam", desc:"Ayam rebus dengan nasi halia-bawang putih yang wangi dan sos cili.",
+          names:["Ayam utuh","Beras wangi, kering","Ulas bawang putih","Halia, dihiris","Daun pandan","Lemak ayam atau minyak","Minyak bijan","Kicap cair","Cili merah","Limau nipis, dijus","Timun","Daun bawang"],
+          steps:[
+            "<strong>Rebus ayam.</strong> Didihkan periuk air bersama separuh halia dan daun bawang. Masukkan ayam, biarkan mendidih perlahan semula, tutup, kemudian matikan api dan biarkan selama 40 minit.",
+            "<strong>Sejukkan.</strong> Rendam ayam dalam air ais selama 10 minit. Ini mengukuhkan kulitnya. Simpan stok rebusan.",
+            "<strong>Masak nasi.</strong> Tumis bawang putih dan baki halia dalam lemak ayam selama 2 minit. Masukkan beras yang telah dibasuh dan kacau seminit. Masak bersama pandan dan stok rebusan secukupnya untuk menutup beras.",
+            "<strong>Buat sos cili.</strong> Kisar cili dengan jus limau nipis dan sesenduk stok sehingga halus, kemudian perasakan.",
+            "<strong>Potong ayam.</strong> Sapu minyak bijan pada ayam, potong kepada kepingan dan renjiskan kicap cair.",
+            "<strong>Hidang.</strong> Hidang dengan nasi, timun yang dihiris, semangkuk sos cili dan secawan stok suam."
+          ] },
+        ta:{ name:"சிக்கன் ரைஸ்", desc:"மணமான இஞ்சி-பூண்டுச் சோறு, மிளகாய் சாஸுடன் வேகவைத்த கோழி.",
+          names:["முழுக் கோழி","ஜாஸ்மின் அரிசி (உலர்)","பூண்டுப் பல்","இஞ்சி (துண்டுகள்)","பாண்டன் இலைகள்","கோழிக் கொழுப்பு அல்லது எண்ணெய்","நல்லெண்ணெய்","இலகு சோயா சாஸ்","சிவப்பு மிளகாய்","எலுமிச்சை (சாறு)","வெள்ளரிக்காய்","வெங்காயத்தாள்"],
+          steps:[
+            "<strong>கோழியை வேகவைக்கவும்.</strong> பாதி இஞ்சி, வெங்காயத்தாளுடன் ஒரு பாத்திரம் தண்ணீரைக் கொதிக்கவிடவும். கோழியை இறக்கி, மெதுவாகக் கொதிக்கவிட்டு, மூடி, பிறகு அடுப்பை அணைத்து 40 நிமிடம் அப்படியே விடவும்.",
+            "<strong>குளிர்விக்கவும்.</strong> கோழியை ஐஸ் நீரில் 10 நிமிடம் அமிழ்த்தவும். இது தோலை உறுதியாக்கும். வேகவைத்த ஸ்டாக்கை எடுத்து வைக்கவும்.",
+            "<strong>சோறு சமைக்கவும்.</strong> பூண்டையும் மீதமுள்ள இஞ்சியையும் கோழிக் கொழுப்பில் 2 நிமிடம் வதக்கவும். கழுவிய அரிசியைச் சேர்த்து ஒரு நிமிடம் கிளறவும். பாண்டன் இலையுடன், அரிசி மூழ்கும் அளவு வேகவைத்த ஸ்டாக்கை ஊற்றிச் சமைக்கவும்.",
+            "<strong>மிளகாய் சாஸ் தயாரிக்கவும்.</strong> மிளகாயை எலுமிச்சைச் சாறு, ஒரு கரண்டி ஸ்டாக்குடன் மென்மையாக அரைத்து, சுவைக்கேற்ப உப்பிடவும்.",
+            "<strong>வெட்டவும்.</strong> கோழிமீது நல்லெண்ணெய் தடவி, துண்டுகளாக வெட்டி, சோயா சாஸைத் தூவவும்.",
+            "<strong>பரிமாறவும்.</strong> சோறு, வெள்ளரித் துண்டுகள், ஒரு கிண்ணம் மிளகாய் சாஸ், ஒரு கோப்பை சூடான ஸ்டாக்குடன் தட்டில் பரிமாறவும்."
+          ] }
+      }
+    },
+    {
+      id:"ckt",
+      ing:[[600,"g",1.4],[200,"g",0.99],[2,"",90,1],[2,"",72,1],[150,"g",0.3],[50,"g",0.3],[4,"",4.5,1],[2,"tbsp",12],[1,"tbsp",9],[1,"tbsp",45],[4,"tbsp",120]],
+      text:{
+        en:{ name:"Char Kway Teow", desc:"Wok-fried flat rice noodles with prawns, Chinese sausage, egg and chives.",
+          names:["Flat rice noodles, fresh","Prawns, peeled","Chinese sausage links","Eggs","Bean sprouts","Chinese chives","Garlic cloves","Dark soy sauce","Light soy sauce","Sambal","Vegetable oil"],
+          steps:[
+            "<strong>Prep.</strong> Gently separate the noodles, slice the sausage thinly, mince the garlic and cut the chives into 4 cm lengths. Mix both soy sauces and the sambal in a small bowl.",
+            "<strong>Heat the wok.</strong> Get the wok very hot, add half the oil and fry the sausage for 1 minute until it releases its fat.",
+            "<strong>Prawns and garlic.</strong> Add the garlic and prawns and stir-fry for 1–2 minutes until the prawns just turn pink.",
+            "<strong>Noodles.</strong> Add the remaining oil and the noodles, pour in the sauce and toss over high heat for 2–3 minutes, until the noodles pick up some char.",
+            "<strong>Egg.</strong> Push the noodles aside, crack in the eggs, let them set for 20 seconds, then scramble and mix through.",
+            "<strong>Finish.</strong> Toss in the bean sprouts and chives for 30 seconds, then serve immediately."
+          ],
+          note:"Cook in batches of 2 servings or fewer. A crowded wok steams the noodles instead of charring them." },
+        zh:{ name:"炒粿条", desc:"镬气十足的炒河粉，配虾、腊肠、鸡蛋和韭菜。",
+          names:["新鲜河粉","虾仁","腊肠","鸡蛋","豆芽","韭菜","蒜瓣","老抽","生抽","参巴酱","植物油"],
+          steps:[
+            "<strong>备料。</strong>将河粉轻轻拨散，腊肠切薄片，蒜切末，韭菜切成 4 厘米长的段。将两种酱油和参巴酱在小碗中拌匀。",
+            "<strong>烧热锅。</strong>将炒锅烧至极热，倒入一半的油，下腊肠煎炒 1 分钟，逼出油脂。",
+            "<strong>虾和蒜。</strong>加入蒜和虾，翻炒 1–2 分钟，至虾刚变红。",
+            "<strong>河粉。</strong>倒入剩下的油和河粉，淋上酱汁，大火翻炒 2–3 分钟，炒出镬气和微焦。",
+            "<strong>鸡蛋。</strong>将河粉推到一边，打入鸡蛋，静置 20 秒待其凝固，再炒散并拌匀。",
+            "<strong>收尾。</strong>加入豆芽和韭菜翻炒 30 秒，立即上桌。"
+          ],
+          note:"每次最多炒 2 人份。锅太挤会让河粉被蒸熟，而不是炒出焦香。" },
+        ms:{ name:"Char Kway Teow", desc:"Kuetiau goreng kuali panas dengan udang, sosej Cina, telur dan kucai.",
+          names:["Kuetiau segar","Udang, dikupas","Sosej Cina","Telur","Taugeh","Kucai","Ulas bawang putih","Kicap pekat","Kicap cair","Sambal","Minyak sayuran"],
+          steps:[
+            "<strong>Sediakan bahan.</strong> Asingkan kuetiau dengan lembut, hiris nipis sosej, cincang bawang putih dan potong kucai sepanjang 4 cm. Campurkan kedua-dua kicap dan sambal dalam mangkuk kecil.",
+            "<strong>Panaskan kuali.</strong> Panaskan kuali sehingga sangat panas, masukkan separuh minyak dan goreng sosej selama 1 minit sehingga lemaknya keluar.",
+            "<strong>Udang dan bawang putih.</strong> Masukkan bawang putih dan udang, kacau-goreng 1–2 minit sehingga udang baru bertukar merah jambu.",
+            "<strong>Kuetiau.</strong> Masukkan baki minyak dan kuetiau, tuang sos dan gaul dengan api besar selama 2–3 minit sehingga kuetiau sedikit hangus.",
+            "<strong>Telur.</strong> Tolak kuetiau ke tepi, pecahkan telur, biarkan 20 saat sehingga set, kemudian hancurkan dan gaul rata.",
+            "<strong>Siapkan.</strong> Masukkan taugeh dan kucai selama 30 saat, kemudian hidang segera."
+          ],
+          note:"Masak dalam kelompok tidak lebih daripada 2 hidangan. Kuali yang sesak akan mengukus kuetiau dan bukannya menghanguskannya." },
+        ta:{ name:"சார் க்வே தியோ", desc:"இறால், சீன தொத்திறைச்சி, முட்டை, சைவ் இலையுடன் வாணலியில் வறுத்த தட்டை நூடுல்ஸ்.",
+          names:["புதிய தட்டை அரிசி நூடுல்ஸ்","தோல் நீக்கிய இறால்","சீன தொத்திறைச்சி","முட்டை","பீன்ஸ் முளை","சீன சைவ் இலை","பூண்டுப் பல்","கருப்பு சோயா சாஸ்","இலகு சோயா சாஸ்","சம்பல்","தாவர எண்ணெய்"],
+          steps:[
+            "<strong>தயார்படுத்தவும்.</strong> நூடுல்ஸை மெதுவாகப் பிரித்து, தொத்திறைச்சியை மெல்லிய துண்டுகளாக நறுக்கி, பூண்டைப் பொடியாக நறுக்கி, சைவ் இலையை 4 செ.மீ. நீளத்தில் வெட்டவும். இரண்டு சோயா சாஸ்களையும் சம்பலையும் சிறிய கிண்ணத்தில் கலக்கவும்.",
+            "<strong>வாணலியைச் சூடாக்கவும்.</strong> வாணலியை மிகவும் சூடாக்கி, பாதி எண்ணெயை ஊற்றி, தொத்திறைச்சியை கொழுப்பு வெளியாகும் வரை 1 நிமிடம் வறுக்கவும்.",
+            "<strong>இறாலும் பூண்டும்.</strong> பூண்டையும் இறாலையும் சேர்த்து, இறால் இளஞ்சிவப்பாக மாறும் வரை 1–2 நிமிடம் வதக்கவும்.",
+            "<strong>நூடுல்ஸ்.</strong> மீதமுள்ள எண்ணெயையும் நூடுல்ஸையும் சேர்த்து, சாஸை ஊற்றி, நூடுல்ஸ் சிறிது கருகும் வரை அதிகத் தீயில் 2–3 நிமிடம் கிளறவும்.",
+            "<strong>முட்டை.</strong> நூடுல்ஸை ஒரு பக்கம் தள்ளி, முட்டைகளை உடைத்து ஊற்றி, 20 விநாடிகள் வேகவிட்டு, பிறகு உதிர்த்துக் கலக்கவும்.",
+            "<strong>முடிக்கவும்.</strong> பீன்ஸ் முளையையும் சைவ் இலையையும் 30 விநாடிகள் கிளறி, உடனே பரிமாறவும்."
+          ],
+          note:"ஒரு தடவைக்கு 2 பரிமாறல்களுக்கு மிகாமல் சமைக்கவும். வாணலி நிரம்பினால் நூடுல்ஸ் கருகாமல் ஆவியில் வேகும்." }
+      }
+    },
+    {
+      id:"friedrice",
+      ing:[[300,"g",3.65],[400,"g",1.65],[4,"",72,1],[3,"",4.5,1],[2,"",25,1],[4,"",5,1],[120,"g",0.81],[3,"tbsp",9],[2,"tbsp",120],[1,"tbsp",120]],
+      text:{
+        en:{ name:"Chicken Fried Rice", desc:"A weeknight staple with chicken, egg, peas and carrot.",
+          names:["Jasmine rice, dry","Chicken breast","Eggs","Garlic cloves","Carrots, medium","Spring onions","Frozen peas","Soy sauce","Sesame oil","Vegetable oil"],
+          steps:[
+            "<strong>Cook the rice.</strong> Rinse the rice, cook it until tender, then spread it on a tray to cool. Day-old rice works best.",
+            "<strong>Prep.</strong> Dice the chicken, mince the garlic, dice the carrots and slice the spring onions. Beat the eggs. Mix the soy sauce and sesame oil in a small bowl.",
+            "<strong>Sear the chicken.</strong> Heat the vegetable oil in a large pan or wok over high heat. Cook the chicken for 5–6 minutes until golden and cooked through, then set aside.",
+            "<strong>Cook the vegetables.</strong> In the same pan, stir-fry the carrots and garlic for 2 minutes. Add the peas and cook for 1 minute more.",
+            "<strong>Scramble the eggs.</strong> Push the vegetables aside, pour in the eggs and stir until just set, then break them up and mix through.",
+            "<strong>Combine.</strong> Add the rice and chicken, pour over the soy and sesame mixture, and toss for 3–4 minutes until hot and lightly crisp in places.",
+            "<strong>Serve.</strong> Scatter with spring onions and serve straight away."
+          ],
+          note:"For more than 8 servings, fry in two batches so the rice stays crisp rather than steaming." },
+        zh:{ name:"鸡肉炒饭", desc:"工作日家常菜，有鸡肉、鸡蛋、青豆和胡萝卜。",
+          names:["茉莉香米（生米）","鸡胸肉","鸡蛋","蒜瓣","胡萝卜（中等）","葱","冷冻青豆","酱油","麻油","植物油"],
+          steps:[
+            "<strong>煮饭。</strong>米洗净煮熟，摊在盘子上放凉。隔夜饭效果最好。",
+            "<strong>备料。</strong>鸡肉切丁，蒜切末，胡萝卜切丁，葱切片。鸡蛋打散。将酱油和麻油在小碗中拌匀。",
+            "<strong>煎鸡肉。</strong>大平底锅或炒锅大火热油，将鸡肉煎 5–6 分钟至金黄熟透，盛出备用。",
+            "<strong>炒蔬菜。</strong>在同一个锅中，将胡萝卜和蒜翻炒 2 分钟。加入青豆再炒 1 分钟。",
+            "<strong>炒蛋。</strong>将蔬菜推到一边，倒入蛋液，炒至刚刚凝固，再打散拌匀。",
+            "<strong>混合。</strong>加入米饭和鸡肉，淋上酱油麻油汁，翻炒 3–4 分钟，至饭粒热透、部分微脆。",
+            "<strong>上桌。</strong>撒上葱花，立即享用。"
+          ],
+          note:"超过 8 人份时请分两批炒，这样米饭才会脆香而不是被蒸软。" },
+        ms:{ name:"Nasi Goreng Ayam", desc:"Hidangan kegemaran hari bekerja dengan ayam, telur, kacang pis dan lobak merah.",
+          names:["Beras wangi, kering","Dada ayam","Telur","Ulas bawang putih","Lobak merah, sederhana","Daun bawang","Kacang pis beku","Kicap","Minyak bijan","Minyak sayuran"],
+          steps:[
+            "<strong>Masak nasi.</strong> Basuh beras, masak sehingga lembut, kemudian hamparkan di atas dulang untuk disejukkan. Nasi semalam paling sesuai.",
+            "<strong>Sediakan bahan.</strong> Dadu ayam, cincang bawang putih, dadu lobak merah dan hiris daun bawang. Pukul telur. Campurkan kicap dan minyak bijan dalam mangkuk kecil.",
+            "<strong>Perangkan ayam.</strong> Panaskan minyak sayuran dalam kuali besar atau kuali cina dengan api besar. Masak ayam selama 5–6 minit sehingga keemasan dan masak, kemudian ketepikan.",
+            "<strong>Masak sayur.</strong> Dalam kuali yang sama, kacau-goreng lobak merah dan bawang putih selama 2 minit. Masukkan kacang pis dan masak seminit lagi.",
+            "<strong>Hancurkan telur.</strong> Tolak sayur ke tepi, tuang telur dan kacau sehingga baru set, kemudian pecahkan dan gaul rata.",
+            "<strong>Gabungkan.</strong> Masukkan nasi dan ayam, tuang campuran kicap dan minyak bijan, kemudian gaul selama 3–4 minit sehingga panas dan sedikit garing di beberapa bahagian.",
+            "<strong>Hidang.</strong> Taburkan daun bawang dan hidang segera."
+          ],
+          note:"Untuk lebih daripada 8 hidangan, goreng dalam dua kelompok supaya nasi kekal garing dan tidak terkukus." },
+        ta:{ name:"சிக்கன் ஃப்ரைட் ரைஸ்", desc:"கோழி, முட்டை, பட்டாணி, கேரட்டுடன் வார நாள் உணவு.",
+          names:["ஜாஸ்மின் அரிசி (உலர்)","கோழி மார்புக்கறி","முட்டை","பூண்டுப் பல்","கேரட் (நடுத்தரம்)","வெங்காயத்தாள்","உறைந்த பட்டாணி","சோயா சாஸ்","நல்லெண்ணெய்","தாவர எண்ணெய்"],
+          steps:[
+            "<strong>சோறு சமைக்கவும்.</strong> அரிசியைக் கழுவி, மென்மையாகும் வரை சமைத்து, தட்டில் பரப்பி ஆறவிடவும். முந்தைய நாள் சோறு சிறந்தது.",
+            "<strong>தயார்படுத்தவும்.</strong> கோழியைச் சிறு துண்டுகளாகவும், பூண்டைப் பொடியாகவும், கேரட்டைச் சிறு கட்டங்களாகவும் நறுக்கி, வெங்காயத்தாளை வட்டமாக நறுக்கவும். முட்டைகளை அடிக்கவும். சோயா சாஸையும் நல்லெண்ணெயையும் சிறிய கிண்ணத்தில் கலக்கவும்.",
+            "<strong>கோழியை வறுக்கவும்.</strong> பெரிய வாணலியில் அதிகத் தீயில் தாவர எண்ணெயைச் சூடாக்கி, கோழியை 5–6 நிமிடம் பொன்னிறமாகவும் நன்கு வேகும் வரையும் வறுத்து, தனியே எடுத்து வைக்கவும்.",
+            "<strong>காய்கறிகளை வதக்கவும்.</strong> அதே வாணலியில் கேரட்டையும் பூண்டையும் 2 நிமிடம் வதக்கவும். பட்டாணியைச் சேர்த்து இன்னும் 1 நிமிடம் சமைக்கவும்.",
+            "<strong>முட்டையைப் பொரிக்கவும்.</strong> காய்கறிகளை ஒரு பக்கம் தள்ளி, முட்டையை ஊற்றி, வெந்தவுடன் கிளறி, உதிர்த்துக் கலக்கவும்.",
+            "<strong>சேர்க்கவும்.</strong> சோற்றையும் கோழியையும் சேர்த்து, சோயா-நல்லெண்ணெய்க் கலவையை ஊற்றி, சூடாகி ஆங்காங்கே லேசாக மொறுமொறுப்பாகும் வரை 3–4 நிமிடம் கிளறவும்.",
+            "<strong>பரிமாறவும்.</strong> வெங்காயத்தாள் தூவி உடனே பரிமாறவும்."
+          ],
+          note:"8 பரிமாறல்களுக்கு மேல் என்றால், சோறு ஆவியில் வேகாமல் மொறுமொறுப்பாக இருக்க இரண்டு தொகுதிகளாக வறுக்கவும்." }
+      }
+    }
+  ];
+
+  /* ---------- State ---------- */
+  let servings = BASE, lang = "en", recipe = RECIPES[0];
+  const $ = id => document.getElementById(id);
+  const list = $("list"), recipeSel = $("recipe"), langSel = $("lang");
+  const ui = () => UI[lang];
+  const txt = () => recipe.text[lang];
+
+  /* ---------- Quantity maths ---------- */
+  const FR = {0.25:"¼",0.5:"½",0.75:"¾"};
+  function fmtSpoon(quarters){
+    const whole = Math.floor(quarters/4), frac = (quarters%4)/4;
+    return (whole ? whole : "") + (frac ? (whole ? " " : "") + FR[frac] : "");
+  }
+  // Returns the amount actually shown, so calories always match the display.
+  function display([qty, unit,, whole], factor){
+    const raw = qty * factor;
+    if(whole){ const q = Math.max(1, Math.round(raw)); return {q, text:String(q)}; }
+    if(unit === "tbsp" || unit === "tsp"){
+      const quarters = Math.max(1, Math.round(raw*4));
+      return {q:quarters/4, text:fmtSpoon(quarters)};
+    }
+    const q = raw >= 100 ? Math.round(raw/5)*5 : Math.max(1, Math.round(raw));
+    return {q, text:String(q)};
+  }
+
+  /* ---------- Rendering ---------- */
+  function fillRecipeOptions(){
+    const current = recipe.id;
+    recipeSel.innerHTML = "";
+    RECIPES.forEach(r=>{
+      const o = document.createElement("option");
+      o.value = r.id; o.textContent = r.text[lang].name;
+      recipeSel.appendChild(o);
+    });
+    recipeSel.value = current;
+  }
+
+  function applyStatic(){
+    document.documentElement.lang = ui().htmlLang;
+    document.querySelectorAll("[data-i18n]").forEach(el=>{ el.textContent = ui()[el.dataset.i18n]; });
+    $("minus").setAttribute("aria-label", ui().fewer);
+    $("plus").setAttribute("aria-label", ui().more);
+  }
+
+  function renderRecipe(){
+    const t = txt();
+    $("title").textContent = t.name;
+    $("desc").textContent = t.desc;
+    $("photo").hidden = !recipe.image;
+    $("photo").classList.toggle("small", !!recipe.small);
+    if(recipe.image){
+      const img = $("photoImg");
+      if(!img.src.endsWith(recipe.image)) img.src = recipe.image;
+      img.alt = t.alt || recipe.text.en.alt || t.name;
+    }
+    list.innerHTML = "";
+    recipe.ing.forEach(()=>{
+      const li = document.createElement("li");
+      li.className = "ing";
+      li.innerHTML = '<span class="name"></span><span class="qty"></span><span class="kcal"></span>';
+      list.appendChild(li);
+    });
+    $("steps").innerHTML = t.steps.map((s,i)=>'<li><span class="n">'+(i+1)+'</span><div>'+s+'</div></li>').join("");
+    const n = $("mnote");
+    n.hidden = !t.note;
+    n.textContent = t.note || "";
+    renderNumbers();
+  }
+
+  function renderNumbers(){
+    const factor = servings / BASE, t = txt(), u = ui();
+    let total = 0;
+    recipe.ing.forEach((ing, i)=>{
+      const d = display(ing, factor);
+      const cal = d.q * ing[2];
+      total += cal;
+      const unit = ing[1] ? u.units[ing[1]] : "";
+      const row = list.children[i];
+      row.children[0].textContent = t.names[i];
+      row.children[1].innerHTML = d.text + (unit ? '<span class="u">'+unit+'</span>' : '');
+      row.children[2].textContent = Math.round(cal);
+    });
+    $("count").textContent = servings;
+    $("total").innerHTML = Math.round(total).toLocaleString("en") + "<span>"+u.kcalUnit+"</span>";
+    $("per").innerHTML = Math.round(total/servings).toLocaleString("en") + "<span>"+u.kcalUnit+"</span>";
+    $("hint").textContent = servings === BASE ? u.writtenFor : u.scaledFrom;
+    $("minus").disabled = servings <= MIN;
+    $("plus").disabled = servings >= MAX;
+  }
+
+  function step(d){ servings = Math.min(MAX, Math.max(MIN, servings + d)); renderNumbers(); }
+  $("minus").addEventListener("click", ()=>step(-1));
+  $("plus").addEventListener("click", ()=>step(1));
+  recipeSel.addEventListener("change", ()=>{ recipe = RECIPES.find(r=>r.id===recipeSel.value); renderRecipe(); });
+  langSel.addEventListener("change", ()=>{ lang = langSel.value; applyStatic(); fillRecipeOptions(); renderRecipe(); });
+  document.addEventListener("keydown", e=>{
+    if(e.target === recipeSel || e.target === langSel) return;
+    if(e.key==="ArrowUp"||e.key==="ArrowRight") step(1);
+    if(e.key==="ArrowDown"||e.key==="ArrowLeft") step(-1);
+  });
+
+  applyStatic(); fillRecipeOptions(); renderRecipe();
+</script>
+</body>
+</html>
